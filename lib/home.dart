@@ -13,6 +13,8 @@ class _HomePageState extends State<HomePage> {
   bool _brokerAddressValidate = false;
   final _brokerAddressController = TextEditingController();
   String message = "None";
+  int distance;
+  Color color;
 
   void _createClient() {
     setState(() {
@@ -36,6 +38,16 @@ class _HomePageState extends State<HomePage> {
           MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
       setState(() {
         this.message = pt;
+        try {
+          this.distance = int.parse(this.message);
+          if (this.distance >= 20) {
+            this.color = Colors.green;
+          } else if (19 > this.distance && this.distance > 10) {
+            this.color = Colors.blue;
+          } else if (this.distance <= 10) {
+            this.color = Colors.red;
+          }
+        } catch (e) {}
       });
       print(
           'EXAMPLE::Change notification:: topic is <${c[0].topic}>, payload is <-- $pt -->');
@@ -94,7 +106,7 @@ class _HomePageState extends State<HomePage> {
               ),
               FlatButton(
                 onPressed: () {
-                  this._publish("/hello", "hellllllo");
+                  this._publish("/distance", "hellllllo");
                   this._onMessage();
                 },
                 child: Text("Publish"),
@@ -107,7 +119,12 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          Text(message)
+          Container(
+            width: 100,
+            height: 100,
+            alignment: Alignment.center,
+            child: Text(message + " cm"), color: this.color
+            )
         ],
       ),
     );
