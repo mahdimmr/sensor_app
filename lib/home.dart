@@ -79,9 +79,10 @@ class _HomePageState extends State<HomePage> {
   _disconnect() {
     this.client.disconnect();
     setState(() {
-      this.color = Colors.grey;
+      this.color = Colors.black;
       this.is_connect = false;
       this.is_sub = false;
+      this.message = "";
     });
   }
 
@@ -89,18 +90,17 @@ class _HomePageState extends State<HomePage> {
     print('EXAMPLE::Subscribing to the ${_topicController.text} topic');
     this.client.subscribe(_topicController.text, MqttQos.exactlyOnce);
     this._onMessage();
-    print("helllllllllllllllobject");
     setState(() {
       this.is_sub = true;
-    });
-    Future.delayed(const Duration(seconds: 3), () {
-      this.client.unsubscribe(_topicController.text);
     });
   }
 
   _subUnScribe(topic) {
     print("uNNNNNNNNNNN");
     this.client.unsubscribe(topic);
+    setState(() {
+      this.is_sub = false;
+    });
   }
 
   @override
@@ -112,7 +112,21 @@ class _HomePageState extends State<HomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            Icon(Icons.settings_remote),
+            IconButton(
+              icon: Icon(Icons.developer_board),
+              onPressed: () {
+                return showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      backgroundColor: Colors.white24,
+                      elevation: 10,
+                      content: Text("Developed by Mehdi MohammadRezayi"),
+                    );
+                  },
+                );
+              },
+            ),
             SizedBox(
               width: 10.0,
             ),
@@ -162,6 +176,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               )),
+          SizedBox(
+            height: 20,
+          ),
           ButtonBar(
             alignment: MainAxisAlignment.center,
             children: <Widget>[
@@ -174,8 +191,12 @@ class _HomePageState extends State<HomePage> {
                 onPressed: this.is_connect
                     ? () {
                         setState(() {
-                          _messageController.text.isEmpty ? _messageValidate = true : _messageValidate = false;
-                          _topicController.text.isEmpty ? _topicValidate = true : _topicValidate = false;
+                          _messageController.text.isEmpty
+                              ? _messageValidate = true
+                              : _messageValidate = false;
+                          _topicController.text.isEmpty
+                              ? _topicValidate = true
+                              : _topicValidate = false;
                         });
                         if (_messageController.text.isNotEmpty &&
                             _topicController.text.isNotEmpty) {
@@ -186,11 +207,15 @@ class _HomePageState extends State<HomePage> {
                     : null,
               ),
               FlatButton(
-                onPressed: is_connect ? () {
-                  if (is_sub) {
-                    this._subUnScribe(_topicController.text);
-                  }
-                } : null,
+                onPressed: is_connect
+                    ? () {
+                        if (is_sub) {
+                          this._subUnScribe(_topicController.text);
+                        } else {
+                          this._subScribe();
+                        }
+                      }
+                    : null,
                 child: Text(this.is_sub ? "UnSubscribe" : "Subscribe"),
               ),
               FlatButton(
