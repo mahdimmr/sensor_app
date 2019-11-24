@@ -10,9 +10,17 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   MqttClient client;
+  bool is_connect = false;
+  bool is_sub = false;
+
   bool _brokerAddressValidate = false;
   final _brokerAddressController = TextEditingController();
-  String message = "None";
+  bool _topicValidate = false;
+  final _topicController = TextEditingController();
+  bool _messageValidate = false;
+  final _messageController = TextEditingController();
+
+  String message = "";
   int distance;
   Color color;
 
@@ -21,12 +29,18 @@ class _HomePageState extends State<HomePage> {
       _brokerAddressController.text.isEmpty
           ? _brokerAddressValidate = true
           : _brokerAddressValidate = false;
+      _topicController.text.isEmpty
+          ? _topicValidate = true
+          : _topicValidate = false;
     });
-    if (_brokerAddressValidate == false) {
+    if (_brokerAddressValidate == false && _topicValidate == false) {
       setState(() {
         this.client = MqttClient(_brokerAddressController.text,
             "Client" + Random().nextInt(6).toString());
         this.client.connect();
+      });
+      setState(() {
+        this.is_connect = true;
       });
     }
   }
@@ -40,13 +54,14 @@ class _HomePageState extends State<HomePage> {
         this.message = pt;
         try {
           this.distance = int.parse(this.message);
-          if (this.distance >= 20) {
+          if (this.distance >= 13) {
             this.color = Colors.green;
-          } else if (19 > this.distance && this.distance > 10) {
+          } else if (5 < this.distance) {
             this.color = Colors.blue;
-          } else if (this.distance <= 10) {
-            this.color = Colors.red;
+          } else if (this.distance < 5) {
+            this.color = Colors.redAccent;
           }
+          this.message = this.distance.toString() + " cm";
         } catch (e) {}
       });
       print(
@@ -57,17 +72,41 @@ class _HomePageState extends State<HomePage> {
   _publish(String topic, String message) {
     final MqttClientPayloadBuilder builder = MqttClientPayloadBuilder();
     builder.addString(message);
-
-    print('EXAMPLE::Subscribing to the ${topic} topic');
-    client.subscribe(topic, MqttQos.exactlyOnce);
-
     print('EXAMPLE::Publishing our topic');
-    client.publishMessage(topic, MqttQos.exactlyOnce, builder.payload);
+    this.client.publishMessage(topic, MqttQos.exactlyOnce, builder.payload);
+  }
+
+  _disconnect() {
+    this.client.disconnect();
+    setState(() {
+      this.color = Colors.grey;
+      this.is_connect = false;
+      this.is_sub = false;
+    });
+  }
+
+  _subScribe() {
+    print('EXAMPLE::Subscribing to the ${_topicController.text} topic');
+    this.client.subscribe(_topicController.text, MqttQos.exactlyOnce);
+    this._onMessage();
+    print("helllllllllllllllobject");
+    setState(() {
+      this.is_sub = true;
+    });
+    Future.delayed(const Duration(seconds: 3), () {
+      this.client.unsubscribe(_topicController.text);
+    });
+  }
+
+  _subUnScribe(topic) {
+    print("uNNNNNNNNNNN");
+    this.client.unsubscribe(topic);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: color,
       appBar: AppBar(
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -77,7 +116,7 @@ class _HomePageState extends State<HomePage> {
             SizedBox(
               width: 10.0,
             ),
-            Text("MController")
+            Text("MController"),
           ],
         ),
       ),
@@ -85,18 +124,44 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-            child: TextField(
-              controller: _brokerAddressController,
-              decoration: InputDecoration(
-                  suffix: Icon(Icons.email, color: Colors.white24),
-                  hintText: "Broker Address",
-                  errorText:
-                      _brokerAddressValidate ? "Insert borker address." : null),
-              keyboardType: TextInputType.emailAddress,
-              maxLines: 1,
-            ),
-          ),
+              padding: const EdgeInsets.only(left: 6.0, right: 6.0),
+              child: Column(
+                children: <Widget>[
+                  TextField(
+                    controller: _brokerAddressController,
+                    decoration: InputDecoration(
+                        suffix: Icon(Icons.message, color: Colors.white24),
+                        hintText: "Broker Address",
+                        errorText: _brokerAddressValidate
+                            ? "Insert borker address."
+                            : null),
+                    keyboardType: TextInputType.number,
+                    maxLines: 1,
+                  ),
+                  TextField(
+                    controller: _topicController,
+                    decoration: InputDecoration(
+                        suffix: Icon(Icons.subject, color: Colors.white24),
+                        hintText: "Topic",
+                        errorText: _topicValidate
+                            ? "Insert the topic you want send message to it!"
+                            : null),
+                    keyboardType: TextInputType.text,
+                    maxLines: 1,
+                  ),
+                  TextField(
+                    enabled: this.is_connect,
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                        suffix: Icon(Icons.email, color: Colors.white24),
+                        hintText: "Message",
+                        errorText:
+                            _messageValidate ? "Insert the message." : null),
+                    keyboardType: TextInputType.text,
+                    maxLines: 1,
+                  ),
+                ],
+              )),
           ButtonBar(
             alignment: MainAxisAlignment.center,
             children: <Widget>[
@@ -105,26 +170,36 @@ class _HomePageState extends State<HomePage> {
                 child: Text("Connect"),
               ),
               FlatButton(
-                onPressed: () {
-                  this._publish("/distance", "hellllllo");
-                  this._onMessage();
-                },
                 child: Text("Publish"),
+                onPressed: this.is_connect
+                    ? () {
+                        setState(() {
+                          _messageController.text.isEmpty ? _messageValidate = true : _messageValidate = false;
+                          _topicController.text.isEmpty ? _topicValidate = true : _topicValidate = false;
+                        });
+                        if (_messageController.text.isNotEmpty &&
+                            _topicController.text.isNotEmpty) {
+                          this._publish(
+                              _topicController.text, _messageController.text);
+                        }
+                      }
+                    : null,
               ),
               FlatButton(
-                onPressed: () {
-                  this.client.disconnect();
-                },
+                onPressed: is_connect ? () {
+                  if (is_sub) {
+                    this._subUnScribe(_topicController.text);
+                  }
+                } : null,
+                child: Text(this.is_sub ? "UnSubscribe" : "Subscribe"),
+              ),
+              FlatButton(
+                onPressed: this.is_connect ? _disconnect : null,
                 child: Text("Disconnect"),
               ),
             ],
           ),
-          Container(
-            width: 100,
-            height: 100,
-            alignment: Alignment.center,
-            child: Text(message + " cm"), color: this.color
-            )
+          Text(message.isEmpty ? "" : message)
         ],
       ),
     );
